@@ -1,4 +1,5 @@
 import io
+import time
 import streamlit as st
 from google import genai
 from google.genai import types
@@ -24,12 +25,15 @@ uploaded = st.file_uploader(
 )
 audio = recorded or uploaded
 target = st.selectbox("Translate to", list(LANG.keys()))
+speak = st.checkbox("Read the translation aloud")
 
 if st.button("Translate") and key and (text or audio):
+    start = time.time()
     client = genai.Client(api_key=key)
     instruction = (
         f"Translate into {target}. The speech or text may be "
-        "Algerian Darija or Amazigh. Reply in exactly this format:\n"
+        "Algerian Darija or Amazigh. Do not explain anything. "
+        "Reply in exactly this format:\n"
         "TRANSCRIPT: <what was said or written>\n"
         "TRANSLATION: <the translation only>"
     )
@@ -44,15 +48,17 @@ if st.button("Translate") and key and (text or audio):
     else:
         contents = f"{instruction}\n\n{text}"
     reply = client.models.generate_content(
-        model="gemini-3.5-flash", contents=contents
+        model="gemini-3.5-flash-lite", contents=contents
     )
     answer = reply.text
     st.write(answer)
+    st.caption(f"Translated in {time.time() - start:.1f} seconds")
 
-    spoken = answer.split("TRANSLATION:")[-1].strip()
-    try:
-        buf = io.BytesIO()
-        gTTS(spoken, lang=LANG[target]).write_to_fp(buf)
-        st.audio(buf.getvalue(), format="audio/mp3")
-    except Exception:
-        st.warning("Could not create the voice. Check your internet.")
+    if speak:
+        spoken = answer.split("TRANSLATION:")[-1].strip()
+        try:
+            buf = io.BytesIO()
+            gTTS(spoken, lang=LANG[target]).write_to_fp(buf)
+            st.audio(buf.getvalue(), format="audio/mp3")
+        except Exception:
+            st.warning("Could not create the voice.")
