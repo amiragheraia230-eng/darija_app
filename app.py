@@ -13,10 +13,19 @@ LANG = {
 
 st.title("Darija Translator")
 
+if not st.user.is_logged_in:
+    st.write("Please sign in to use the translator.")
+    st.button("Sign in with Google", on_click=st.login)
+    st.stop()
+
+st.write(f"Hello, {st.user.name}")
+st.button("Sign out", on_click=st.logout)
+
 try:
     key = st.secrets["GEMINI_API_KEY"]
 except Exception:
-    key = st.text_input("Gemini API key", type="password")
+    st.error("The app is not configured yet.")
+    st.stop()
 
 text = st.text_area("Text (Darija, Amazigh, or any language)")
 recorded = st.audio_input("Or record your voice")
@@ -27,15 +36,17 @@ audio = recorded or uploaded
 target = st.selectbox("Translate to", list(LANG.keys()))
 speak = st.checkbox("Read the translation aloud")
 
-if st.button("Translate") and key and (text or audio):
+if st.button("Translate") and (text or audio):
     start = time.time()
     client = genai.Client(api_key=key)
     instruction = (
-        f"Translate into {target}. The speech or text may be "
-        "Algerian Darija or Amazigh. Do not explain anything. "
+        "The speech or text may be Algerian Darija or Amazigh. "
+        f"Translate it into {target}. The TRANSLATION line must be "
+        f"written in {target} only, never in English unless the "
+        "target is English. Do not explain anything. "
         "Reply in exactly this format:\n"
         "TRANSCRIPT: <what was said or written>\n"
-        "TRANSLATION: <the translation only>"
+        f"TRANSLATION: <the translation in {target}>"
     )
     if audio:
         contents = [
@@ -48,7 +59,7 @@ if st.button("Translate") and key and (text or audio):
     else:
         contents = f"{instruction}\n\n{text}"
     reply = client.models.generate_content(
-        model="gemini-3.5-flash-lite", contents=contents
+        model="gemini-3.5-flash", contents=contents
     )
     answer = reply.text
     st.write(answer)
